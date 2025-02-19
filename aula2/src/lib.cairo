@@ -11,6 +11,7 @@ pub trait IHelloWorld<TContractState> {
     //get
     fn is_user_registered(self: @TContractState, user: ContractAddress) -> bool;
     fn get_user_id(self: @TContractState, user: ContractAddress) -> felt252;
+    fn get_users_count(self: @TContractState) -> u64;
 }
 
 #[starknet::contract]
@@ -33,6 +34,8 @@ mod HelloWorld {
         ids: Map<ContractAddress, felt252>,
         users_registered: Map<ContractAddress, bool>,
 
+        users_count: u64,
+
         #[substorage(v0)]
         pub ownable: OwnableComponent::Storage,
     }
@@ -43,6 +46,8 @@ mod HelloWorld {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
         UserRegistered: UserRegistered,
+        UserUnregistered: UserUnregistered,
+        UserIdChanged: UserIdChanged,
 
     }
 
@@ -57,7 +62,11 @@ mod HelloWorld {
         pub user: ContractAddress,
     }
 
-    
+    #[derive(Drop, PartialEq, starknet::Event)]
+    pub struct UserIdChanged {
+        pub user: ContractAddress,
+        pub id: felt252,
+    }
 
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
@@ -71,6 +80,13 @@ mod HelloWorld {
             let caller = get_caller_address();
             self.users_registered.entry(caller).write(true);
             self.ids.entry(caller).write(id);
+            self.users_count.write(self.users_count.read() + 1);
+
+            self.emit(UserRegistered {
+                user: caller,
+                id: id,
+            });
+
         }
 
         fn unregister_user(ref self: ContractState, user: ContractAddress) {
@@ -78,8 +94,19 @@ mod HelloWorld {
             let owner = self.ownable.owner();
 
             assert(caller == user || caller == owner, 'Unauthorized');
+            let is_registered = self.users_registered.entry(user).read();
+
+            assert(is_registered, 'User not registered');
+
+            assert(self.users_count.read() > 0, 'No users registered');
+
+            self.users_count.write(self.users_count.read() - 1);
 
             self.users_registered.entry(user).write(false);
+
+            self.emit(UserUnregistered {
+                user: user,
+            });
         }
 
         fn change_user_id(ref self: ContractState, id: felt252) {
@@ -89,6 +116,15 @@ mod HelloWorld {
             assert(registered, 'User not registered');
 
             self.ids.entry(caller).write(id);
+
+            self.emit(UserIdChanged {
+                user: caller,
+                id: id,
+            });
+        }
+
+        fn get_users_count(self: @ContractState) -> u64 {
+            self.users_count.read()
         }
 
         fn is_user_registered(self: @ContractState, user: ContractAddress) -> bool {
