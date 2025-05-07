@@ -8,10 +8,14 @@ use aula2::IHelloWorldDispatcherTrait;
 
 fn deploy_contract(name: ByteArray) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
-    let calldata: Array<felt252> = array![OWNER().into()];
+    let calldata: Array<felt252> = array![OWNER().into(), ERC20_ADDR().into()];
 
     let (contract_address, _) = contract.deploy(@calldata).unwrap();
     contract_address
+}
+
+pub fn ERC20_ADDR() -> ContractAddress {
+    contract_address_const::<0x049D36570D4e46f48e99674bd3fcc84644DdD6b96F7C741B1562B82f9e004dC7>()
 }
 
 pub fn USER() -> ContractAddress {
