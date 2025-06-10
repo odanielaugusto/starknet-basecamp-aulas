@@ -20,6 +20,9 @@ pub trait IHelloWorld<TContractState> {
     fn userBalance(self: @TContractState, user: ContractAddress) -> u256;
     fn myBalance(self: @TContractState) -> u256;
     fn contractBalance(self: @TContractState) -> u256;
+
+    //reset users count
+    fn reset_users_count(ref self: TContractState);
 }
 
 #[starknet::contract]
@@ -34,7 +37,7 @@ mod HelloWorld {
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
     #[abi(embed_v0)]
-    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
+    impl    MixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
 
 
@@ -194,6 +197,13 @@ mod HelloWorld {
 
         fn contractBalance(self: @ContractState) -> u256 {
             self.this_balance.read()
+        }
+        
+        fn reset_users_count(ref self: ContractState) {
+            let caller = get_caller_address();
+            let owner = self.ownable.owner();
+            assert(caller == owner, 'OnlyOwner');
+            self.users_count.write(0);
         }
     }
 }
